@@ -1,11 +1,28 @@
 # ICARE CEBRA Pipeline
 
+## Setup
+
+**Docker:**
+```bash
+make build
+```
+
+**Local (without Docker):**
+```bash
+python3 -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
 ## Quick Start
 
-**Interactive Notebook:**
+**Notebook:**
 ```bash
-docker run --rm -p 8888:8888 -v "$(pwd)":/app icare-cebra \
-  jupyter notebook --ip=0.0.0.0 --no-browser --allow-root
+# Docker
+make notebook
+
+# Local
+jupyter notebook pipeline.ipynb
 ```
 
 **Command Line:**
