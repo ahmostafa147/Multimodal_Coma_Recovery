@@ -37,22 +37,23 @@ def plot_embedding(embedding, labels, title, output_path, label_names=None):
 
 def plot_train_test(train_emb, test_emb, train_labels, test_labels, output_path):
     """Plot train and test embeddings side by side"""
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
-    scatter1 = ax1.scatter(train_emb[:, 0], train_emb[:, 1],
+    ax1.scatter(train_emb[:, 0], train_emb[:, 1],
                c=train_labels, cmap='RdYlGn', s=1, alpha=0.6)
     ax1.set_title('Train')
     ax1.set_xlabel('Dimension 1')
     ax1.set_ylabel('Dimension 2')
 
-    scatter2 = ax2.scatter(test_emb[:, 0], test_emb[:, 1],
+    scatter = ax2.scatter(test_emb[:, 0], test_emb[:, 1],
                          c=test_labels, cmap='RdYlGn', s=1, alpha=0.6)
     ax2.set_title('Test')
     ax2.set_xlabel('Dimension 1')
     ax2.set_ylabel('Dimension 2')
 
-    fig.colorbar(scatter2, ax=[ax1, ax2], label='CPC', pad=0.02)
-    plt.tight_layout()
+    plt.subplots_adjust(right=0.85)
+    cbar_ax = fig.add_axes([0.88, 0.15, 0.02, 0.7])
+    fig.colorbar(scatter, cax=cbar_ax, label='CPC')
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
