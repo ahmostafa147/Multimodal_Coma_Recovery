@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # ICARE CEBRA Pipeline
 
 ## Setup
@@ -63,3 +64,6 @@ docker run --rm -v "$(pwd)":/app icare-cebra \
 docker run --rm -v "$(pwd)":/app icare-cebra \
   python scripts/tune.py --label cpc_bin --n-runs 5
 ```
+=======
+# Multimodal_Coma_Recovery
+>>>>>>> 98bb3078f0a4f4dabbeefcaa6cbab4c172aef723
