@@ -1,5 +1,17 @@
-<<<<<<< HEAD
 # ICARE CEBRA Pipeline
+CPC prediction from neural data using CEBRA embeddings
+
+## Data Setup
+```
+10_w_spikes/
+├── 1000_ICARE_patient_10s_94f_with_spike/
+│   ├── ICARE_0001_rel10s_with_spike.csv
+│   ├── ICARE_0002_rel10s_with_spike.csv
+│   ├── ICARE_0003_rel10s_with_spike.csv
+│   └── ICARE_0004_rel10s_with_spike.csv
+└── labels/
+    └── ICARE_clinical.csv
+```
 
 ## Setup
 
@@ -8,62 +20,50 @@
 make build
 ```
 
-**Local (without Docker):**
+**Local:**
 ```bash
 python3 -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Quick Start
+## Run
 
 **Notebook:**
 ```bash
-# Docker
-make notebook
-
-# Local
-jupyter notebook pipeline.ipynb
+make notebook          # Docker
+jupyter notebook       # Local
 ```
 
-**Command Line:**
+**CLI:**
 ```bash
-make prepare    # Prepare train/test splits
-make train      # Train CEBRA model
-make evaluate   # Evaluate on test set
+make prepare    # Merge data, split train/test (stratified by cpc_bin, patient-level)
+make train      # Train CEBRA (5000 iter, 8 dims, cpc_bin labels)
+make evaluate   # KNN classification (accuracy, AUC)
 make visualize  # Plot embeddings
 ```
 
-## Pipeline
+## Scripts
 
-**1. Data Preparation**
-- Merges neural data with clinical labels (CPC)
-- Stratified train/test split by cpc_bin
-- Ensures patients only in train OR test
+- `prepare_data.py` - Merge neural + labels, handle NaN (mean imputation), split train/test
+- `train.py` - Train CEBRA model (supports single or multiple labels)
+- `evaluate.py` - KNN classification performance
+- `visualize.py` - 2D/3D embedding plots
+- `tune.py` - Hyperparameter grid search
 
-**2. Training**
-- CEBRA-Behavior with CPC labels
-- Default: 5000 iterations, 8 dimensions
+## Custom Training
 
-**3. Evaluation**
-- KNN decoding performance
-- Train/test accuracy and AUC
-
-**4. Visualization**
-- Train/test embedding plots
-- Colored by CPC labels
-
-## Custom Usage
-
+**Multiple labels:**
 ```bash
-# Train with continuous CPC
-docker run --rm -v "$(pwd)":/app icare-cebra \
-  python scripts/train.py --label cpc --output models/cebra_cpc.pt
-
-# Tune hyperparameters
-docker run --rm -v "$(pwd)":/app icare-cebra \
-  python scripts/tune.py --label cpc_bin --n-runs 5
+python scripts/train.py --labels cpc,cpc_bin --output models/multi.pt
 ```
-=======
-# Multimodal_Coma_Recovery
->>>>>>> 98bb3078f0a4f4dabbeefcaa6cbab4c172aef723
+
+**Different NaN strategy:**
+```bash
+python scripts/prepare_data.py --nan-strategy median  # drop, mean, median, zero, ffill
+```
+
+**Custom hyperparameters:**
+```bash
+python scripts/train.py --output-dim 3 --max-iter 10000 --labels cpc
+```
