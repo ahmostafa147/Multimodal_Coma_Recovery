@@ -1,16 +1,24 @@
 # ICARE CEBRA Pipeline
 CPC prediction from neural data using CEBRA embeddings
 
+## Quick Test
+
+```bash
+python scripts/prepare_data.py --config test_config.json
+python scripts/train.py --config test_config.json
+python scripts/evaluate.py --model models/cebra_model.pt
+```
+
 ## Data Setup
 ```
 10_w_spikes/
-├── 1000_ICARE_patient_10s_94f_with_spike/
-│   ├── ICARE_0001_rel10s_with_spike.csv
-│   ├── ICARE_0002_rel10s_with_spike.csv
-│   ├── ICARE_0003_rel10s_with_spike.csv
-│   └── ICARE_0004_rel10s_with_spike.csv
-└── labels/
-    └── ICARE_clinical.csv
+├── 1000_ICARE_patient_10s_94f_with_spike/  # Real data
+│   └── ICARE_*.csv
+├── labels/
+│   └── ICARE_clinical.csv
+└── test_data/  # Test data (included)
+    ├── TEST_*.csv
+    └── labels/test_clinical.csv
 ```
 
 ## Setup

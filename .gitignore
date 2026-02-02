@@ -5,6 +5,10 @@ labels/
 *.npz
 *.csv
 
+# Allow test data
+!test_data/
+!test_data/**/*.csv
+
 # Model outputs
 models/
 tuning/

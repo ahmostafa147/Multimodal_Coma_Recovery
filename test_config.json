@@ -1,0 +1,32 @@
+{
+  "data": {
+    "neural_dir": "test_data",
+    "labels_path": "test_data/labels/test_clinical.csv",
+    "test_size": 0.5,
+    "nan_strategy": "mean",
+    "seed": 42
+  },
+  "training": {
+    "labels": "cpc_bin",
+    "model_architecture": "offset10-model",
+    "batch_size": 32,
+    "learning_rate": 0.001,
+    "temperature": 1.0,
+    "max_iterations": 100,
+    "time_offsets": 5,
+    "output_dimension": 3,
+    "seed": 42
+  },
+  "tuning": {
+    "param_grid": {
+      "learning_rate": [0.001, 0.003],
+      "temperature": [1.0, 1.12],
+      "output_dimension": [2, 3],
+      "max_iterations": [50, 100]
+    },
+    "n_runs": 2
+  },
+  "evaluation": {
+    "k_neighbors": 3
+  }
+}
