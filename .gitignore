@@ -1,0 +1,44 @@
+# Data
+data/
+labels/
+1000_ICARE_patient_10s_94f_with_spike/
+*.npz
+*.csv
+
+# Model outputs
+models/
+tuning/
+evaluation/
+visualizations/
+*.pt
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+
+# Docker
+.docker/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
