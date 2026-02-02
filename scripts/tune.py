@@ -66,22 +66,31 @@ def tune_hyperparameters(neural_data, labels, param_grid, output_path, n_runs=3)
     return results
 
 if __name__ == "__main__":
+    import json as json_module
+    from pathlib import Path
+
     parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='config.json')
     parser.add_argument('--train-data', default='data/train.npz')
-    parser.add_argument('--label', default='cpc', choices=['cpc', 'cpc_bin'])
+    parser.add_argument('--label', choices=['cpc', 'cpc_bin'])
     parser.add_argument('--output', default='tuning/results.json')
-    parser.add_argument('--n-runs', type=int, default=3)
+    parser.add_argument('--n-runs', type=int)
     args = parser.parse_args()
 
-    data = np.load(args.train_data, allow_pickle=True)
-    neural = data['neural']
-    labels = data[args.label]
+    # Load config
+    config = {}
+    if Path(args.config).exists():
+        with open(args.config) as f:
+            config = json_module.load(f)['tuning']
 
-    param_grid = {
+    label = args.label or 'cpc_bin'
+    n_runs = args.n_runs or config.get('n_runs', 3)
+    param_grid = config.get('param_grid', {
         'learning_rate': [1e-4, 3e-4, 1e-3],
         'temperature': [1.0, 1.12, 1.5],
         'output_dimension': [3, 8, 16],
         'max_iterations': [3000, 5000, 10000]
-    }
+    })
 
-    tune_hyperparameters(neural, labels, param_grid, args.output, args.n_runs)
+    data = np.load(args.train_data, allow_pickle=True)
+    tune_hyperparameters(data['neural'], data[label], param_grid, args.output, n_runs)

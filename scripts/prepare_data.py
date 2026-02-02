@@ -153,16 +153,26 @@ def save_splits(train_data, test_data, output_dir='data'):
 
 if __name__ == "__main__":
     import argparse
+    import json
+    from pathlib import Path
+
     parser = argparse.ArgumentParser()
-    parser.add_argument('--nan-strategy', default='mean', choices=['drop', 'mean', 'median', 'zero', 'ffill'])
+    parser.add_argument('--config', default='config.json')
+    parser.add_argument('--nan-strategy', choices=['drop', 'mean', 'median', 'zero', 'ffill'])
     args = parser.parse_args()
 
-    merged = load_and_merge_data(
-        "1000_ICARE_patient_10s_94f_with_spike",
-        "labels/ICARE_clinical.csv"
-    )
+    # Load config
+    config = {}
+    if Path(args.config).exists():
+        with open(args.config) as f:
+            config = json.load(f)['data']
 
-    train_data, test_data = prepare_train_test_split(
-        merged, test_size=0.2, seed=42, nan_strategy=args.nan_strategy
-    )
+    nan_strategy = args.nan_strategy or config.get('nan_strategy', 'mean')
+    neural_dir = config.get('neural_dir', '1000_ICARE_patient_10s_94f_with_spike')
+    labels_path = config.get('labels_path', 'labels/ICARE_clinical.csv')
+    test_size = config.get('test_size', 0.2)
+    seed = config.get('seed', 42)
+
+    merged = load_and_merge_data(neural_dir, labels_path)
+    train_data, test_data = prepare_train_test_split(merged, test_size, seed, nan_strategy)
     save_splits(train_data, test_data)

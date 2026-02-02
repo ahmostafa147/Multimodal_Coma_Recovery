@@ -44,27 +44,43 @@ def train_cebra(neural_data, labels, output_path, max_iter=5000, output_dim=8, s
     return model, embedding
 
 if __name__ == "__main__":
+    import json
+    from pathlib import Path
+
     parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='config.json')
     parser.add_argument('--train-data', default='data/train.npz')
-    parser.add_argument('--labels', default='cpc_bin', help='Comma-separated: cpc,cpc_bin or single: cpc_bin')
+    parser.add_argument('--labels')
     parser.add_argument('--output', default='models/cebra_model.pt')
-    parser.add_argument('--output-dim', type=int, default=8)
-    parser.add_argument('--max-iter', type=int, default=5000)
-    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--output-dim', type=int)
+    parser.add_argument('--max-iter', type=int)
+    parser.add_argument('--seed', type=int)
     args = parser.parse_args()
+
+    # Load config
+    config = {}
+    if Path(args.config).exists():
+        with open(args.config) as f:
+            config = json.load(f)['training']
+
+    # CLI args override config
+    labels = args.labels or config.get('labels', 'cpc_bin')
+    output_dim = args.output_dim or config.get('output_dimension', 8)
+    max_iter = args.max_iter or config.get('max_iterations', 5000)
+    seed = args.seed or config.get('seed', 42)
 
     data = np.load(args.train_data, allow_pickle=True)
     neural = data['neural']
 
     # Support multiple labels
-    label_keys = args.labels.split(',')
+    label_keys = labels.split(',')
     if len(label_keys) == 1:
-        labels = data[label_keys[0]]
+        label_data = data[label_keys[0]]
     else:
-        labels = np.column_stack([data[k] for k in label_keys])
+        label_data = np.column_stack([data[k] for k in label_keys])
 
-    print(f"Training CEBRA with labels: {args.labels}")
+    print(f"Training CEBRA with labels: {labels}")
     print(f"Data: {neural.shape}")
-    print(f"Labels: {labels.shape}")
+    print(f"Labels: {label_data.shape}")
 
-    train_cebra(neural, labels, args.output, args.max_iter, args.output_dim, args.seed)
+    train_cebra(neural, label_data, args.output, max_iter, output_dim, seed)

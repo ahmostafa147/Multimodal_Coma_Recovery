@@ -1,0 +1,32 @@
+{
+  "data": {
+    "neural_dir": "1000_ICARE_patient_10s_94f_with_spike",
+    "labels_path": "labels/ICARE_clinical.csv",
+    "test_size": 0.2,
+    "nan_strategy": "mean",
+    "seed": 42
+  },
+  "training": {
+    "labels": "cpc_bin",
+    "model_architecture": "offset10-model",
+    "batch_size": 512,
+    "learning_rate": 0.0003,
+    "temperature": 1.12,
+    "max_iterations": 5000,
+    "time_offsets": 10,
+    "output_dimension": 8,
+    "seed": 42
+  },
+  "tuning": {
+    "param_grid": {
+      "learning_rate": [0.0001, 0.0003, 0.001],
+      "temperature": [1.0, 1.12, 1.5],
+      "output_dimension": [3, 8, 16],
+      "max_iterations": [3000, 5000, 10000]
+    },
+    "n_runs": 3
+  },
+  "evaluation": {
+    "k_neighbors": 5
+  }
+}

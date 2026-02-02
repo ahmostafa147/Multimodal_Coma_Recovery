@@ -51,19 +51,16 @@ make visualize  # Plot embeddings
 - `visualize.py` - 2D/3D embedding plots
 - `tune.py` - Hyperparameter grid search
 
-## Custom Training
+## Configuration
+
+Edit `config.json` for default parameters. CLI args override config.
 
 **Multiple labels:**
 ```bash
-python scripts/train.py --labels cpc,cpc_bin --output models/multi.pt
+python scripts/train.py --labels cpc,cpc_bin
 ```
 
-**Different NaN strategy:**
+**Custom config:**
 ```bash
-python scripts/prepare_data.py --nan-strategy median  # drop, mean, median, zero, ffill
-```
-
-**Custom hyperparameters:**
-```bash
-python scripts/train.py --output-dim 3 --max-iter 10000 --labels cpc
+python scripts/train.py --config my_config.json
 ```
