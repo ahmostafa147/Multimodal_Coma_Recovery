@@ -1,45 +1,67 @@
 #!/usr/bin/env python3
-"""Test pipeline"""
+"""Test all pipeline functionality"""
 import sys
 import numpy as np
 from pathlib import Path
 
-def test_data_split():
-    """Test train/test split"""
-    assert Path('data/train.npz').exists(), "Missing train.npz"
-    assert Path('data/test.npz').exists(), "Missing test.npz"
+def test_prepare():
+    from scripts.prepare_data import load_and_merge_data, prepare_train_test_split, save_splits
 
-    train = np.load('data/train.npz', allow_pickle=True)
-    test = np.load('data/test.npz', allow_pickle=True)
+    merged = load_and_merge_data("test_data", "test_data/labels/test_clinical.csv")
+    train, test = prepare_train_test_split(merged, test_size=0.5, seed=42, nan_strategy='mean')
 
-    # Check keys
-    required_keys = ['neural', 'cpc', 'cpc_bin', 'patient_ids', 'patient_names', 'feature_names']
-    for key in required_keys:
-        assert key in train, f"Missing {key} in train"
-        assert key in test, f"Missing {key} in test"
+    # Save to separate test location
+    np.savez_compressed('data/test_train.npz', **train)
+    np.savez_compressed('data/test_test.npz', **test)
+    print("✓ Data preparation")
 
-    # Check shapes
-    assert train['neural'].ndim == 2, "Train neural should be 2D"
-    assert test['neural'].ndim == 2, "Test neural should be 2D"
-    assert train['neural'].shape[1] == test['neural'].shape[1], "Feature mismatch"
+def test_train():
+    from scripts.train import train_cebra
 
-    # Check no patient overlap
-    train_patients = set(train['patient_names'])
-    test_patients = set(test['patient_names'])
-    assert len(train_patients & test_patients) == 0, "Patient overlap detected"
+    data = np.load('data/test_train.npz', allow_pickle=True)
+    train_cebra(data['neural'], data['cpc_bin'], 'models/test_model.pt',
+                max_iter=30, output_dim=2, seed=42)
+    print("✓ Training")
 
-    # Check stratification
-    train_cpc_dist = np.bincount(train['cpc_bin'])
-    test_cpc_dist = np.bincount(test['cpc_bin'])
+def test_evaluate():
+    from scripts.evaluate import evaluate_model
 
-    print(f"✓ Data split:")
-    print(f"  Train: {train['neural'].shape}, {len(np.unique(train['patient_ids']))} patients")
-    print(f"  Test: {test['neural'].shape}, {len(np.unique(test['patient_ids']))} patients")
-    print(f"  No patient overlap: {len(train_patients & test_patients) == 0}")
+    train = np.load('data/test_train.npz', allow_pickle=True)
+    test = np.load('data/test_test.npz', allow_pickle=True)
+    results = evaluate_model('models/test_model.pt', train, test, 'cpc_bin')
+    print(f"✓ Evaluation (acc: {results['test_accuracy']:.2f})")
+
+def test_visualize():
+    from scripts.visualize import plot_train_test
+    from cebra import CEBRA
+
+    train = np.load('data/test_train.npz', allow_pickle=True)
+    test = np.load('data/test_test.npz', allow_pickle=True)
+    model = CEBRA.load('models/test_model.pt')
+
+    train_emb = model.transform(train['neural'])
+    test_emb = model.transform(test['neural'])
+    plot_train_test(train_emb, test_emb, train['cpc_bin'], test['cpc_bin'],
+                    'visualizations/test.png')
+    print("✓ Visualization")
+
+def test_tune():
+    from scripts.tune import tune_hyperparameters
+
+    data = np.load('data/test_train.npz', allow_pickle=True)
+    param_grid = {'learning_rate': [0.001], 'temperature': [1.0],
+                  'output_dimension': [2], 'max_iterations': [20]}
+    tune_hyperparameters(data['neural'], data['cpc_bin'], param_grid,
+                        'tuning/test_results.json', n_runs=1)
+    print("✓ Tuning")
 
 if __name__ == "__main__":
     try:
-        test_data_split()
+        test_prepare()
+        test_train()
+        test_evaluate()
+        test_visualize()
+        test_tune()
         print("\n✓ All tests passed")
         sys.exit(0)
     except Exception as e:

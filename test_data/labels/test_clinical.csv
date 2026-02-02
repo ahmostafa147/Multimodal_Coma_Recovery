@@ -1,3 +1,5 @@
 pat_ICARE,cpc,cpc_bin,ROSC(minutes),age,sex,vfib,time_to_CA(seconds)
 TEST_0001,2,good,10,65,M,1,300
 TEST_0002,4,poor,15,72,F,0,450
+TEST_0003,3,good,12,68,M,1,350
+TEST_0004,5,poor,20,75,F,0,500
