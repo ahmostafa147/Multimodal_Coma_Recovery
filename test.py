@@ -55,6 +55,31 @@ def test_tune():
                         'tuning/test_results.json', n_runs=1)
     print("✓ Tuning")
 
+def test_animate():
+    from scripts.animate import create_animation
+    from cebra import CEBRA
+
+    data = np.load('data/test_train.npz', allow_pickle=True)
+    model = CEBRA.load('models/test_model.pt')
+    embedding = model.transform(data['neural'])
+
+    # Get first patient
+    patients = np.unique(data['patient_names'])
+    highlight = patients[0]
+
+    create_animation(
+        embedding=embedding,
+        labels=data['cpc_bin'],
+        patient_ids=data['patient_names'],
+        rel_sec=data['rel_sec'],
+        highlight_patient=highlight,
+        output_path='visualizations/test_trajectory.mp4',
+        duration=5,  # Short for testing
+        fps=10
+    )
+    assert Path('visualizations/test_trajectory.mp4').exists(), "Animation not saved"
+    print("✓ Animation")
+
 if __name__ == "__main__":
     try:
         test_prepare()
@@ -62,6 +87,7 @@ if __name__ == "__main__":
         test_evaluate()
         test_visualize()
         test_tune()
+        test_animate()
         print("\n✓ All tests passed")
         sys.exit(0)
     except Exception as e:

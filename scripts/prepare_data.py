@@ -106,6 +106,7 @@ def prepare_train_test_split(merged_df, test_size=0.2, seed=42, nan_strategy='dr
             'cpc_bin': cpc_bin,
             'patient_ids': patient_ids,
             'patient_names': df['patient'].values,
+            'rel_sec': df['rel_sec'].values.astype(np.float32),
             'feature_names': feature_cols
         }
 
