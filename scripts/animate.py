@@ -61,11 +61,11 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
 
     # Background: all points colored by cpc_bin
     colors = ['#2ecc71' if l == 0 else '#e74c3c' for l in labels]
-    ax.scatter(embedding[:, 0], embedding[:, 1], c=colors, s=5, alpha=0.3)
+    ax.scatter(embedding[:, 0], embedding[:, 1], c=colors, s=3, alpha=0.5, zorder=1)
 
     # Initialize trajectory line and point
-    line, = ax.plot([], [], 'b-', linewidth=2, alpha=0.8)
-    point, = ax.plot([], [], 'bo', markersize=10, markeredgecolor='white', markeredgewidth=2)
+    line, = ax.plot([], [], 'b-', linewidth=1.5, alpha=0.7, zorder=2)
+    point, = ax.plot([], [], 'bo', markersize=8, markeredgecolor='white', markeredgewidth=1.5, zorder=3)
 
     # Labels
     ax.set_xlabel('Dimension 1', fontsize=12)
