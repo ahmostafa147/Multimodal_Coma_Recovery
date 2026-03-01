@@ -4,7 +4,8 @@
     "labels_path": "test_data/labels/test_clinical.csv",
     "test_size": 0.5,
     "nan_strategy": "mean",
-    "seed": 42
+    "seed": 42,
+    "n_workers": 1
   },
   "training": {
     "labels": "cpc_bin",
@@ -17,6 +18,14 @@
     "output_dimension": 3,
     "seed": 42
   },
+  "prediction": {
+    "task_type": "CPU",
+    "iterations": 50,
+    "learning_rate": 0.05,
+    "depth": 4,
+    "l2_leaf_reg": 3,
+    "verbose": 0
+  },
   "tuning": {
     "param_grid": {
       "learning_rate": [0.001, 0.003],
@@ -26,7 +35,10 @@
     },
     "n_runs": 2
   },
-  "evaluation": {
-    "k_neighbors": 3
+  "animation": {
+    "duration": 5,
+    "fps": 10,
+    "smoothing": 0.5,
+    "rotation_speed": 1.0
   }
 }

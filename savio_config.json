@@ -4,7 +4,8 @@
     "labels_path": "/global/scratch/users/ahmostafa/CEBRA_modeling_local/labels/ICARE_clinical.csv",
     "test_size": 0.2,
     "nan_strategy": "mean",
-    "seed": 42
+    "seed": 42,
+    "n_workers": 4
   },
   "training": {
     "labels": "cpc_bin",
@@ -17,6 +18,14 @@
     "output_dimension": 8,
     "seed": 42
   },
+  "prediction": {
+    "task_type": "GPU",
+    "iterations": 1000,
+    "learning_rate": 0.05,
+    "depth": 6,
+    "l2_leaf_reg": 3,
+    "verbose": 100
+  },
   "tuning": {
     "param_grid": {
       "learning_rate": [0.0001, 0.0003, 0.001],
@@ -26,7 +35,10 @@
     },
     "n_runs": 3
   },
-  "evaluation": {
-    "k_neighbors": 5
+  "animation": {
+    "duration": 120,
+    "fps": 30,
+    "smoothing": 0.5,
+    "rotation_speed": 1.0
   }
 }

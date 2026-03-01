@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Hyperparameter tuning"""
+"""Hyperparameter tuning for CEBRA models"""
 import argparse
 import numpy as np
 import torch
@@ -8,19 +8,42 @@ from pathlib import Path
 from itertools import product
 import json
 
-def tune_hyperparameters(neural_data, labels, param_grid, output_path, n_runs=3):
-    """Grid search over hyperparameters"""
+
+def tune_hyperparameters(neural_data, labels, param_grid, output_path, n_runs=3,
+                         base_config=None):
+    """
+    Grid search over CEBRA hyperparameters.
+
+    Args:
+        neural_data: (n_samples, n_features) array
+        labels: label array
+        param_grid: dict of param_name -> list of values
+        output_path: where to save results JSON
+        n_runs: number of runs per config
+        base_config: dict of fixed training params
+    """
     device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Fixed params from config
+    fixed = {
+        'model_architecture': 'offset10-model',
+        'batch_size': 512,
+        'time_offsets': 10,
+    }
+    if base_config:
+        fixed['model_architecture'] = base_config.get('model_architecture', fixed['model_architecture'])
+        fixed['batch_size'] = base_config.get('batch_size', fixed['batch_size'])
+        fixed['time_offsets'] = base_config.get('time_offsets', fixed['time_offsets'])
 
     keys = list(param_grid.keys())
     values = list(param_grid.values())
     configs = [dict(zip(keys, v)) for v in product(*values)]
 
     results = []
-    print(f"Testing {len(configs)} configs x {n_runs} runs")
+    print(f"Testing {len(configs)} configs x {n_runs} runs on {device}")
 
     for i, config in enumerate(configs):
-        print(f"\n[{i+1}/{len(configs)}] {config}")
+        print(f"\n[{i + 1}/{len(configs)}] {config}")
 
         losses = []
         for run in range(n_runs):
@@ -29,9 +52,7 @@ def tune_hyperparameters(neural_data, labels, param_grid, output_path, n_runs=3)
             torch.manual_seed(seed)
 
             model = CEBRA(
-                model_architecture='offset10-model',
-                batch_size=512,
-                time_offsets=10,
+                **fixed,
                 device=device,
                 verbose=False,
                 **config
@@ -51,7 +72,7 @@ def tune_hyperparameters(neural_data, labels, param_grid, output_path, n_runs=3)
             'std_loss': float(std_loss)
         })
 
-        print(f"  Loss: {avg_loss:.4f} ± {std_loss:.4f}")
+        print(f"  Loss: {avg_loss:.4f} +/- {std_loss:.4f}")
 
     results.sort(key=lambda x: x['avg_loss'])
 
@@ -61,14 +82,12 @@ def tune_hyperparameters(neural_data, labels, param_grid, output_path, n_runs=3)
 
     print(f"\n✓ Results: {output_path}")
     print(f"Best config: {results[0]['config']}")
-    print(f"Best loss: {results[0]['avg_loss']:.4f} ± {results[0]['std_loss']:.4f}")
+    print(f"Best loss: {results[0]['avg_loss']:.4f} +/- {results[0]['std_loss']:.4f}")
 
     return results
 
-if __name__ == "__main__":
-    import json as json_module
-    from pathlib import Path
 
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', default='config.json')
     parser.add_argument('--train-data', default='data/train.npz')
@@ -77,11 +96,13 @@ if __name__ == "__main__":
     parser.add_argument('--n-runs', type=int)
     args = parser.parse_args()
 
-    # Load config
     config = {}
+    training_config = {}
     if Path(args.config).exists():
         with open(args.config) as f:
-            config = json_module.load(f)['tuning']
+            full_config = json.load(f)
+            config = full_config.get('tuning', {})
+            training_config = full_config.get('training', {})
 
     label = args.label or 'cpc_bin'
     n_runs = args.n_runs or config.get('n_runs', 3)
@@ -93,4 +114,5 @@ if __name__ == "__main__":
     })
 
     data = np.load(args.train_data, allow_pickle=True)
-    tune_hyperparameters(data['neural'], data[label], param_grid, args.output, n_runs)
+    tune_hyperparameters(data['neural'], data[label], param_grid, args.output,
+                         n_runs, base_config=training_config)
