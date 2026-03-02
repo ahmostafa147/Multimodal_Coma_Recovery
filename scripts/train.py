@@ -53,7 +53,6 @@ def train_cebra(neural_data, labels, output_path, config=None,
     partial_fit_threshold = config.get('partial_fit_threshold', 2_000_000) if config else 2_000_000
 
     total_iters = params.pop('max_iterations')
-    model = CEBRA(**params, max_iterations=total_iters)
 
     if n_samples > partial_fit_threshold:
         # Split into chunks for partial_fit to avoid OOM on label distance matrix
@@ -63,6 +62,8 @@ def train_cebra(neural_data, labels, output_path, config=None,
 
         print(f"Dataset: {n_samples} samples -> {n_chunks} chunks of ~{chunk_size}")
         print(f"Total iterations: {total_iters}, per chunk: {iters_per_chunk}")
+
+        model = CEBRA(**params, max_iterations=iters_per_chunk)
 
         rng = np.random.RandomState(seed)
         indices = rng.permutation(n_samples)
@@ -76,10 +77,11 @@ def train_cebra(neural_data, labels, output_path, config=None,
             chunk_labels = labels[chunk_idx]
 
             print(f"\nChunk {i + 1}/{n_chunks}: {len(chunk_idx)} samples")
-            model.partial_fit(chunk_neural, chunk_labels, max_iterations=iters_per_chunk)
+            model.partial_fit(chunk_neural, chunk_labels)
 
             del chunk_neural, chunk_labels
     else:
+        model = CEBRA(**params, max_iterations=total_iters)
         model.fit(neural_data, labels)
 
     Path(output_path).parent.mkdir(exist_ok=True)

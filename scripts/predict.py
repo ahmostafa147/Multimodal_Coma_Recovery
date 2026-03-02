@@ -41,7 +41,7 @@ def predict_model(model_path, train_data, test_data, label_key='cpc_bin',
         'l2_leaf_reg': 3,
         'verbose': 100,
         'random_seed': 42,
-        'eval_metric': 'AUC',
+        'eval_metric': 'Logloss',
         'task_type': 'GPU',
     }
     if catboost_config:
