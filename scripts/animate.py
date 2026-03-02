@@ -30,14 +30,15 @@ def smooth_trajectory(points, smoothing=0.5, num_points=None):
 
 
 def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
-                     output_path, duration=120, fps=30, smoothing=0.5,
-                     rotation_speed=1.0, catboost_model=None, patient_features=None):
+                     output_path, duration=30, fps=15, smoothing=0.5,
+                     rotation_speed=1.0, max_bg_points=50000,
+                     catboost_model=None, patient_features=None):
     """
     Create 3D animation of CEBRA embeddings with patient trajectory.
 
     Args:
         embedding: (n_samples, n_dims) CEBRA embedding (background)
-        labels: (n_samples,) cpc_bin labels for coloring
+        labels: (n_samples,) labels for coloring
         patient_ids: (n_samples,) patient IDs
         rel_sec: (n_samples,) relative time in seconds
         highlight_patient: patient ID to highlight
@@ -46,6 +47,7 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
         fps: frames per second
         smoothing: spline smoothing factor
         rotation_speed: degrees per frame for 3D rotation
+        max_bg_points: max background points to render (subsamples if exceeded)
         catboost_model: trained CatBoost model for predictions (optional)
         patient_features: (n_patient_samples, n_embedding_dims) for CatBoost input (optional)
     """
@@ -63,7 +65,7 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
     if patient_features is not None:
         patient_features = patient_features[sort_idx]
 
-    # Get CatBoost predictions per timestep if available
+    # CatBoost predictions per timestep
     predictions = None
     if catboost_model is not None and patient_features is not None:
         predictions = catboost_model.predict_proba(patient_features)[:, 1]
@@ -75,18 +77,28 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
         smooth_emb = smooth_trajectory(patient_emb[:, :2], smoothing)
 
     n_frames = duration * fps
+    print(f"Rendering {n_frames} frames ({duration}s @ {fps}fps)")
+
+    # Subsample background for performance
+    bg_embedding = embedding
+    bg_labels = labels
+    n_total = len(embedding)
+    if n_total > max_bg_points:
+        print(f"Subsampling background: {n_total} -> {max_bg_points} points")
+        rng = np.random.RandomState(42)
+        idx = rng.choice(n_total, max_bg_points, replace=False)
+        bg_embedding = embedding[idx]
+        bg_labels = labels[idx]
 
     # Create figure
     fig = plt.figure(figsize=(14, 10))
 
     if use_3d:
         ax = fig.add_subplot(111, projection='3d')
-        # Background: all points colored by cpc_bin
-        colors = ['#2ecc71' if l == 0 else '#e74c3c' for l in labels]
-        ax.scatter(embedding[:, 0], embedding[:, 1], embedding[:, 2],
+        colors = ['#2ecc71' if l == 0 else '#e74c3c' for l in bg_labels]
+        ax.scatter(bg_embedding[:, 0], bg_embedding[:, 1], bg_embedding[:, 2],
                    c=colors, s=2, alpha=0.3, zorder=1)
 
-        # Initialize trajectory
         line, = ax.plot([], [], [], 'b-', linewidth=1.5, alpha=0.8, zorder=2)
         point, = ax.plot([], [], [], 'bo', markersize=10,
                          markeredgecolor='white', markeredgewidth=1.5, zorder=3)
@@ -96,8 +108,8 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
         ax.set_zlabel('Dim 3')
     else:
         ax = fig.add_subplot(111)
-        colors = ['#2ecc71' if l == 0 else '#e74c3c' for l in labels]
-        ax.scatter(embedding[:, 0], embedding[:, 1],
+        colors = ['#2ecc71' if l == 0 else '#e74c3c' for l in bg_labels]
+        ax.scatter(bg_embedding[:, 0], bg_embedding[:, 1],
                    c=colors, s=3, alpha=0.5, zorder=1)
 
         line, = ax.plot([], [], 'b-', linewidth=1.5, alpha=0.7, zorder=2)
@@ -109,7 +121,6 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
 
     ax.set_title(f'CEBRA Embedding - Patient {highlight_patient} Trajectory', fontsize=14)
 
-    # Legend
     legend_elements = [
         Patch(facecolor='#2ecc71', alpha=0.5, label='Good CPC'),
         Patch(facecolor='#e74c3c', alpha=0.5, label='Poor CPC'),
@@ -117,7 +128,6 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
     ]
     ax.legend(handles=legend_elements, loc='upper right')
 
-    # Info text
     time_text = ax.text2D(0.02, 0.98, '', transform=ax.transAxes, fontsize=11,
                           verticalalignment='top', fontfamily='monospace',
                           bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
@@ -141,18 +151,14 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
             if use_3d:
                 line.set_data_3d(trail[:, 0], trail[:, 1], trail[:, 2])
                 point.set_data_3d([trail[-1, 0]], [trail[-1, 1]], [trail[-1, 2]])
-
-                # Rotate view
                 ax.view_init(elev=20, azim=frame * rotation_speed)
             else:
                 line.set_data(trail[:, 0], trail[:, 1])
                 point.set_data([trail[-1, 0]], [trail[-1, 1]])
 
-        # Time display
         time_val = patient_time[0] + progress * (patient_time[-1] - patient_time[0])
         info = f'Time: {time_val:.1f}s'
 
-        # CatBoost prediction display
         if predictions is not None:
             pred_idx = min(int(progress * (len(predictions) - 1)), len(predictions) - 1)
             prob = predictions[pred_idx]
@@ -176,35 +182,34 @@ def create_animation(embedding, labels, patient_ids, rel_sec, highlight_patient,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--model', required=True, help='CEBRA model .pt file')
-    parser.add_argument('--data', required=True, help='NPZ file with neural, cpc_bin, patient_names, rel_sec')
+    parser.add_argument('--data', required=True, help='NPZ file')
     parser.add_argument('--patient', required=True, help='Patient ID to highlight')
-    parser.add_argument('--catboost-model', default=None, help='CatBoost .cbm model for predictions')
+    parser.add_argument('--label', default='cpc_bin', help='Label key for coloring')
+    parser.add_argument('--catboost-model', default=None, help='CatBoost .cbm model')
     parser.add_argument('--output', default='visualizations/trajectory.mp4')
-    parser.add_argument('--duration', type=int, default=120)
-    parser.add_argument('--fps', type=int, default=30)
+    parser.add_argument('--duration', type=int, default=30)
+    parser.add_argument('--fps', type=int, default=15)
     parser.add_argument('--smoothing', type=float, default=0.5)
     parser.add_argument('--rotation-speed', type=float, default=1.0)
+    parser.add_argument('--max-bg-points', type=int, default=50000)
     args = parser.parse_args()
 
     data = np.load(args.data, allow_pickle=True)
     model = CEBRA.load(args.model)
     embedding = model.transform(data['neural'])
 
-    # Load CatBoost model if provided
     catboost_clf = None
     patient_features = None
     if args.catboost_model and Path(args.catboost_model).exists():
         from catboost import CatBoostClassifier
         catboost_clf = CatBoostClassifier()
         catboost_clf.load_model(args.catboost_model)
-
-        # Patient embedding features for CatBoost
         patient_mask = data['patient_names'] == args.patient
         patient_features = embedding[patient_mask]
 
     create_animation(
         embedding=embedding,
-        labels=data['cpc_bin'],
+        labels=data[args.label],
         patient_ids=data['patient_names'],
         rel_sec=data['rel_sec'] if 'rel_sec' in data else np.arange(len(embedding)),
         highlight_patient=args.patient,
@@ -213,6 +218,7 @@ if __name__ == "__main__":
         fps=args.fps,
         smoothing=args.smoothing,
         rotation_speed=args.rotation_speed,
+        max_bg_points=args.max_bg_points,
         catboost_model=catboost_clf,
         patient_features=patient_features
     )

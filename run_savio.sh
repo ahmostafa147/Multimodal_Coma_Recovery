@@ -27,9 +27,13 @@ source activate $HOME/envs/cebra
 echo "Python: $(which python)"
 echo "PyTorch CUDA: $(python -c 'import torch; print(torch.cuda.is_available())')"
 
-# Run full pipeline
-echo "=== Running Full Pipeline ==="
-python run_pipeline.py --config savio_config.json
+# Run pipeline — pass any extra args (e.g. --stages train predict)
+# Usage:
+#   sbatch run_savio.sh                              # run all stages
+#   sbatch run_savio.sh --stages train predict       # run specific stages
+#   sbatch run_savio.sh --stages visualize animate   # just viz
+echo "=== Running Pipeline ==="
+python run_pipeline.py --config config.json $@
 
 echo "=== Pipeline Complete ==="
 echo "Outputs:"

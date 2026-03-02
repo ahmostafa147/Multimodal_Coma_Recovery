@@ -36,9 +36,10 @@
     "n_runs": 3
   },
   "animation": {
-    "duration": 120,
-    "fps": 30,
+    "duration": 30,
+    "fps": 15,
     "smoothing": 0.5,
-    "rotation_speed": 1.0
+    "rotation_speed": 1.0,
+    "max_bg_points": 50000
   }
 }
