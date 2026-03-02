@@ -24,7 +24,10 @@ def _detect_feature_cols(sample_df):
 
 
 def _handle_nans(neural, nan_strategy):
-    """Apply NaN/Inf handling strategy to neural array"""
+    """
+    Apply NaN/Inf handling strategy to neural array.
+    Returns (cleaned_neural, keep_mask). keep_mask is None unless strategy is 'drop'.
+    """
     # Replace inf with NaN first so all strategies handle them
     inf_count = np.isinf(neural).sum()
     if inf_count > 0:
@@ -33,13 +36,14 @@ def _handle_nans(neural, nan_strategy):
 
     nan_count = np.isnan(neural).sum()
     if nan_count == 0:
-        return neural
+        return neural, None
 
     print(f"  NaN values: {nan_count} ({nan_count / neural.size * 100:.2f}%)")
     if nan_strategy == 'drop':
         mask = ~np.isnan(neural).any(axis=1)
         neural = neural[mask]
-        print(f"  Dropped {(~mask).sum()} samples")
+        print(f"  Dropped {(~mask).sum()} samples, kept {mask.sum()}")
+        return neural, mask
     elif nan_strategy == 'mean':
         col_means = np.nanmean(neural, axis=0)
         inds = np.where(np.isnan(neural))
@@ -52,7 +56,7 @@ def _handle_nans(neural, nan_strategy):
         neural = np.nan_to_num(neural, nan=0.0)
     elif nan_strategy == 'ffill':
         neural = pd.DataFrame(neural).ffill().fillna(0).values.astype(np.float32)
-    return neural
+    return neural, None
 
 
 def load_and_merge_data(neural_dir, labels_path):
@@ -208,16 +212,35 @@ def prepare_data_streaming(neural_dir, labels_path, test_size=0.2, seed=42,
     del train_arrays, test_arrays
     gc.collect()
 
+    # Concatenate metadata before NaN handling (so we can apply mask)
+    train_cpc = np.concatenate(train_meta['cpc'])
+    train_cpc_bin = np.concatenate(train_meta['cpc_bin'])
+    train_names = np.concatenate(train_meta['patient_names'])
+    train_rel_sec = np.concatenate(train_meta['rel_sec'])
+
+    test_cpc = np.concatenate(test_meta['cpc'])
+    test_cpc_bin = np.concatenate(test_meta['cpc_bin'])
+    test_names = np.concatenate(test_meta['patient_names'])
+    test_rel_sec = np.concatenate(test_meta['rel_sec'])
+
     # Handle NaNs
     print("Handling NaN values (train)...")
-    train_neural = _handle_nans(train_neural, nan_strategy)
+    train_neural, train_mask = _handle_nans(train_neural, nan_strategy)
+    if train_mask is not None:
+        train_cpc = train_cpc[train_mask]
+        train_cpc_bin = train_cpc_bin[train_mask]
+        train_names = train_names[train_mask]
+        train_rel_sec = train_rel_sec[train_mask]
+
     print("Handling NaN values (test)...")
-    test_neural = _handle_nans(test_neural, nan_strategy)
+    test_neural, test_mask = _handle_nans(test_neural, nan_strategy)
+    if test_mask is not None:
+        test_cpc = test_cpc[test_mask]
+        test_cpc_bin = test_cpc_bin[test_mask]
+        test_names = test_names[test_mask]
+        test_rel_sec = test_rel_sec[test_mask]
 
     # Build patient ID maps
-    train_names = np.concatenate(train_meta['patient_names'])
-    test_names = np.concatenate(test_meta['patient_names'])
-
     def make_patient_ids(names):
         unique = sorted(set(names))
         pmap = {p: i for i, p in enumerate(unique)}
@@ -225,20 +248,20 @@ def prepare_data_streaming(neural_dir, labels_path, test_size=0.2, seed=42,
 
     train_data = {
         'neural': train_neural,
-        'cpc': np.concatenate(train_meta['cpc']),
-        'cpc_bin': np.concatenate(train_meta['cpc_bin']),
+        'cpc': train_cpc,
+        'cpc_bin': train_cpc_bin,
         'patient_ids': make_patient_ids(train_names),
         'patient_names': train_names,
-        'rel_sec': np.concatenate(train_meta['rel_sec']),
+        'rel_sec': train_rel_sec,
         'feature_names': feature_cols
     }
     test_data = {
         'neural': test_neural,
-        'cpc': np.concatenate(test_meta['cpc']),
-        'cpc_bin': np.concatenate(test_meta['cpc_bin']),
+        'cpc': test_cpc,
+        'cpc_bin': test_cpc_bin,
         'patient_ids': make_patient_ids(test_names),
         'patient_names': test_names,
-        'rel_sec': np.concatenate(test_meta['rel_sec']),
+        'rel_sec': test_rel_sec,
         'feature_names': feature_cols
     }
 
@@ -283,7 +306,10 @@ def prepare_train_test_split(merged_df, test_size=0.2, seed=42, nan_strategy='dr
 
     def extract_data(df):
         neural = df[feature_cols].values.astype(np.float32)
-        neural = _handle_nans(neural, nan_strategy)
+        neural, mask = _handle_nans(neural, nan_strategy)
+
+        if mask is not None:
+            df = df[mask].reset_index(drop=True)
 
         cpc_bin = (df['cpc_bin'] == 'poor').astype(np.int32).values
         cpc = df['cpc'].values.astype(np.float32)
