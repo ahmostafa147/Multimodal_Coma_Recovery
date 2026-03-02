@@ -52,23 +52,33 @@ def train_cebra(neural_data, labels, output_path, config=None,
     # Threshold for partial_fit — 2M samples is safe for A40 48GB
     partial_fit_threshold = config.get('partial_fit_threshold', 2_000_000) if config else 2_000_000
 
-    model = CEBRA(**params)
+    total_iters = params.pop('max_iterations')
+    model = CEBRA(**params, max_iterations=total_iters)
 
     if n_samples > partial_fit_threshold:
-        # Subsample for training — CEBRA contrastive loss works well with subsets
-        subsample_size = min(n_samples, partial_fit_threshold)
-        print(f"Dataset too large for single fit ({n_samples} samples)")
-        print(f"Subsampling to {subsample_size} samples for training")
+        # Split into chunks for partial_fit to avoid OOM on label distance matrix
+        chunk_size = partial_fit_threshold
+        n_chunks = (n_samples + chunk_size - 1) // chunk_size
+        iters_per_chunk = max(1, total_iters // n_chunks)
+
+        print(f"Dataset: {n_samples} samples -> {n_chunks} chunks of ~{chunk_size}")
+        print(f"Total iterations: {total_iters}, per chunk: {iters_per_chunk}")
 
         rng = np.random.RandomState(seed)
-        idx = rng.choice(n_samples, subsample_size, replace=False)
-        idx.sort()  # Keep temporal order
+        indices = rng.permutation(n_samples)
 
-        sub_neural = neural_data[idx]
-        sub_labels = labels[idx] if labels.ndim == 1 else labels[idx]
+        for i in range(n_chunks):
+            start = i * chunk_size
+            end = min((i + 1) * chunk_size, n_samples)
+            chunk_idx = np.sort(indices[start:end])
 
-        model.fit(sub_neural, sub_labels)
-        del sub_neural, sub_labels
+            chunk_neural = neural_data[chunk_idx]
+            chunk_labels = labels[chunk_idx]
+
+            print(f"\nChunk {i + 1}/{n_chunks}: {len(chunk_idx)} samples")
+            model.partial_fit(chunk_neural, chunk_labels, max_iterations=iters_per_chunk)
+
+            del chunk_neural, chunk_labels
     else:
         model.fit(neural_data, labels)
 
@@ -76,7 +86,7 @@ def train_cebra(neural_data, labels, output_path, config=None,
     model.save(output_path)
 
     print(f"\n✓ Model: {output_path}")
-    print(f"  Device: {device}, Samples used: {min(n_samples, partial_fit_threshold)}")
+    print(f"  Device: {device}, Samples: {n_samples}")
 
     return model
 
