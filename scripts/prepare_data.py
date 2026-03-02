@@ -24,7 +24,13 @@ def _detect_feature_cols(sample_df):
 
 
 def _handle_nans(neural, nan_strategy):
-    """Apply NaN handling strategy to neural array"""
+    """Apply NaN/Inf handling strategy to neural array"""
+    # Replace inf with NaN first so all strategies handle them
+    inf_count = np.isinf(neural).sum()
+    if inf_count > 0:
+        print(f"  Inf values: {inf_count} ({inf_count / neural.size * 100:.2f}%) — replaced with NaN")
+        neural = np.where(np.isinf(neural), np.nan, neural)
+
     nan_count = np.isnan(neural).sum()
     if nan_count == 0:
         return neural

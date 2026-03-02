@@ -10,7 +10,6 @@ echo "=== CEBRA Pipeline Environment Setup ==="
 
 # Load modules
 module load anaconda3/2024.02-1-11.4
-module load gcc/11.3.0
 
 # Remove existing env if requested
 if [ "$1" == "--clean" ] && [ -d "$ENV_DIR" ]; then
