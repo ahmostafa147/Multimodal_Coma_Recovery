@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 from cebra import CEBRA
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from concurrent.futures import ThreadPoolExecutor
 import torch
 
 # === Config ===
@@ -27,54 +26,73 @@ GRID = {
     'batch_size': [512, 1024],
 }
 
-# === Load data ===
+# === Stream CSVs one at a time ===
 print("Loading labels...")
 labels_df = pd.read_csv(LABELS_PATH)
+patient_to_cpc = dict(zip(labels_df['pat_ICARE'], labels_df['cpc_bin']))
 csv_files = sorted(Path(NEURAL_DIR).glob("*.csv"))
 print(f"Found {len(csv_files)} CSVs")
 
+# Detect feature columns from first file
+sample = pd.read_csv(csv_files[0], encoding='utf-8-sig', nrows=5)
+sample = sample.merge(labels_df, left_on='patient', right_on='pat_ICARE', how='inner')
 meta_cols = {'patient', 'seg_no', 'file', 'row_in_seg', 'rel_sec',
              'pat_ICARE', 'cpc', 'cpc_bin', 'ROSC(minutes)', 'age',
              'sex', 'vfib', 'time_to_CA(seconds)'}
+feat_cols = [c for c in sample.columns if c not in meta_cols]
+n_feats = len(feat_cols)
+print(f"Features: {n_feats}")
 
-def read_csv(f):
-    df = pd.read_csv(f, encoding='utf-8-sig')
-    return df.merge(labels_df, left_on='patient', right_on='pat_ICARE', how='inner')
-
-print("Reading and merging CSVs...")
-with ThreadPoolExecutor(max_workers=4) as ex:
-    dfs = list(ex.map(read_csv, csv_files))
-merged = pd.concat([d for d in dfs if len(d) > 0], ignore_index=True)
-del dfs; gc.collect()
-print(f"Merged: {len(merged)} samples")
-
-merged = merged.dropna(subset=['cpc_bin']).reset_index(drop=True)
-print(f"After dropping NaN labels: {len(merged)} samples")
-
-feat_cols = [c for c in merged.columns if c not in meta_cols]
-neural = merged[feat_cols].values.astype(np.float32)
-neural = np.where(np.isinf(neural), np.nan, neural)
-col_means = np.nanmean(neural, axis=0)
-inds = np.where(np.isnan(neural))
-neural[inds] = np.take(col_means, inds[1])
-
-cpc_bin = (merged['cpc_bin'] == 'poor').astype(np.float32).values
-rel_sec = merged['rel_sec'].values.astype(np.float32)
-patients = merged['patient'].values
-
-# === Patient-level split ===
-pat_labels = merged[['patient', 'cpc_bin']].drop_duplicates()
+# Split patients first
+valid_patients = [p for p in labels_df['pat_ICARE'] if pd.notna(patient_to_cpc.get(p))]
+pat_cpc = [patient_to_cpc[p] for p in valid_patients]
 train_pats, test_pats = train_test_split(
-    pat_labels['patient'].values, test_size=0.2,
-    stratify=pat_labels['cpc_bin'].values, random_state=SEED)
+    valid_patients, test_size=0.2, stratify=pat_cpc, random_state=SEED)
+train_set, test_set = set(train_pats), set(test_pats)
+print(f"Patients — train: {len(train_pats)}, test: {len(test_pats)}")
 
-train_mask = np.isin(patients, train_pats)
-test_mask = np.isin(patients, test_pats)
-train_X, test_X = neural[train_mask], neural[test_mask]
-train_cpc, test_cpc = cpc_bin[train_mask], cpc_bin[test_mask]
-train_rel, test_rel = rel_sec[train_mask], rel_sec[test_mask]
-del merged, neural; gc.collect()
+# Stream CSVs, extract features per patient
+train_arrays, test_arrays = [], []
+train_meta, test_meta = {'cpc': [], 'rel': []}, {'cpc': [], 'rel': []}
 
+for fi, f in enumerate(csv_files):
+    df = pd.read_csv(f, encoding='utf-8-sig')
+    pid = df['patient'].iloc[0]
+    if pid not in train_set and pid not in test_set:
+        continue
+    df = df.merge(labels_df, left_on='patient', right_on='pat_ICARE', how='inner')
+    df = df.dropna(subset=['cpc_bin'])
+    if len(df) == 0:
+        continue
+
+    feats = df[feat_cols].values.astype(np.float32)
+    cpc = (df['cpc_bin'] == 'poor').astype(np.float32).values
+    rel = df['rel_sec'].values.astype(np.float32) if 'rel_sec' in df.columns else np.zeros(len(df), dtype=np.float32)
+
+    if pid in train_set:
+        train_arrays.append(feats); train_meta['cpc'].append(cpc); train_meta['rel'].append(rel)
+    else:
+        test_arrays.append(feats); test_meta['cpc'].append(cpc); test_meta['rel'].append(rel)
+
+    del df, feats
+    if fi % 100 == 0:
+        print(f"  {fi}/{len(csv_files)}")
+
+train_X = np.concatenate(train_arrays); del train_arrays
+test_X = np.concatenate(test_arrays); del test_arrays
+train_cpc = np.concatenate(train_meta['cpc']); train_rel = np.concatenate(train_meta['rel'])
+test_cpc = np.concatenate(test_meta['cpc']); test_rel = np.concatenate(test_meta['rel'])
+del train_meta, test_meta; gc.collect()
+
+# Clean inf/nan with mean
+def clean(x):
+    x = np.where(np.isinf(x), np.nan, x)
+    means = np.nanmean(x, axis=0)
+    inds = np.where(np.isnan(x))
+    x[inds] = np.take(means, inds[1])
+    return x
+
+train_X = clean(train_X); test_X = clean(test_X)
 print(f"Train: {train_X.shape}, Test: {test_X.shape}, Device: {DEVICE}")
 
 # === Subsample for CEBRA fit ===
