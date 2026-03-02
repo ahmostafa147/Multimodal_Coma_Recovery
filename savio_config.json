@@ -16,7 +16,8 @@
     "max_iterations": 5000,
     "time_offsets": 10,
     "output_dimension": 8,
-    "seed": 42
+    "seed": 42,
+    "partial_fit_threshold": 2000000
   },
   "prediction": {
     "task_type": "GPU",

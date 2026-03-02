@@ -56,12 +56,12 @@ def run_train(config):
     labels = _build_labels(data, label_keys)
 
     model_path = 'models/cebra_model.pt'
-    model, embedding = train_cebra(
+    model = train_cebra(
         data['neural'], labels, model_path,
         config=train_cfg,
         seed=train_cfg.get('seed', 42)
     )
-    del data, labels, embedding
+    del data, labels, model
     gc.collect()
 
 
@@ -111,8 +111,9 @@ def run_visualize(config):
     train_npz = np.load('data/train.npz', allow_pickle=True)
     test_npz = np.load('data/test.npz', allow_pickle=True)
 
-    train_emb = model.transform(train_npz['neural'])
-    test_emb = model.transform(test_npz['neural'])
+    from scripts.train import transform_batched
+    train_emb = transform_batched(model, train_npz['neural'])
+    test_emb = transform_batched(model, test_npz['neural'])
 
     plot_embedding(train_emb, train_npz[label_key],
                    'Train Embedding', 'visualizations/cebra_model_train.png')
@@ -138,9 +139,10 @@ def run_animate(config):
     if ',' in label_key:
         label_key = label_key.split(',')[0].strip()
 
+    from scripts.train import transform_batched
     model = CEBRA.load('models/cebra_model.pt')
     test_npz = np.load('data/test.npz', allow_pickle=True)
-    test_emb = model.transform(test_npz['neural'])
+    test_emb = transform_batched(model, test_npz['neural'])
 
     # Pick a random test patient
     test_patients = np.unique(test_npz['patient_names'])

@@ -10,7 +10,7 @@ from pathlib import Path
 def train_cebra(neural_data, labels, output_path, config=None,
                 max_iter=5000, output_dim=8, seed=42):
     """
-    Train CEBRA model.
+    Train CEBRA model. Uses partial_fit for large datasets to avoid GPU OOM.
 
     Args:
         neural_data: (n_samples, n_features) array
@@ -48,17 +48,52 @@ def train_cebra(neural_data, labels, output_path, config=None,
         params['time_offsets'] = config.get('time_offsets', params['time_offsets'])
         params['output_dimension'] = config.get('output_dimension', params['output_dimension'])
 
+    n_samples = len(neural_data)
+    # Threshold for partial_fit — 2M samples is safe for A40 48GB
+    partial_fit_threshold = config.get('partial_fit_threshold', 2_000_000) if config else 2_000_000
+
     model = CEBRA(**params)
-    model.fit(neural_data, labels)
+
+    if n_samples > partial_fit_threshold:
+        # Subsample for training — CEBRA contrastive loss works well with subsets
+        subsample_size = min(n_samples, partial_fit_threshold)
+        print(f"Dataset too large for single fit ({n_samples} samples)")
+        print(f"Subsampling to {subsample_size} samples for training")
+
+        rng = np.random.RandomState(seed)
+        idx = rng.choice(n_samples, subsample_size, replace=False)
+        idx.sort()  # Keep temporal order
+
+        sub_neural = neural_data[idx]
+        sub_labels = labels[idx] if labels.ndim == 1 else labels[idx]
+
+        model.fit(sub_neural, sub_labels)
+        del sub_neural, sub_labels
+    else:
+        model.fit(neural_data, labels)
 
     Path(output_path).parent.mkdir(exist_ok=True)
     model.save(output_path)
 
-    embedding = model.transform(neural_data)
     print(f"\n✓ Model: {output_path}")
-    print(f"  Embedding: {embedding.shape}, Device: {device}")
+    print(f"  Device: {device}, Samples used: {min(n_samples, partial_fit_threshold)}")
 
-    return model, embedding
+    return model
+
+
+def transform_batched(model, neural_data, batch_size=500_000):
+    """Transform data in batches to avoid GPU OOM."""
+    n_samples = len(neural_data)
+    if n_samples <= batch_size:
+        return model.transform(neural_data)
+
+    print(f"Transforming in batches ({n_samples} samples, batch_size={batch_size})")
+    embeddings = []
+    for start in range(0, n_samples, batch_size):
+        end = min(start + batch_size, n_samples)
+        emb = model.transform(neural_data[start:end])
+        embeddings.append(emb)
+    return np.concatenate(embeddings, axis=0)
 
 
 if __name__ == "__main__":

@@ -100,9 +100,10 @@ if __name__ == "__main__":
     train_data = np.load(args.train_data, allow_pickle=True)
     test_data = np.load(args.test_data, allow_pickle=True)
 
+    from scripts.train import transform_batched
     model = CEBRA.load(args.model)
-    train_emb = model.transform(train_data['neural'])
-    test_emb = model.transform(test_data['neural'])
+    train_emb = transform_batched(model, train_data['neural'])
+    test_emb = transform_batched(model, test_data['neural'])
 
     model_name = Path(args.model).stem
     output_dir = args.output_dir

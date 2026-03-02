@@ -194,9 +194,10 @@ if __name__ == "__main__":
     parser.add_argument('--max-bg-points', type=int, default=50000)
     args = parser.parse_args()
 
+    from scripts.train import transform_batched
     data = np.load(args.data, allow_pickle=True)
     model = CEBRA.load(args.model)
-    embedding = model.transform(data['neural'])
+    embedding = transform_batched(model, data['neural'])
 
     catboost_clf = None
     patient_features = None

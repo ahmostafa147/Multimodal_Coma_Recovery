@@ -25,9 +25,10 @@ def predict_model(model_path, train_data, test_data, label_key='cpc_bin',
     Returns:
         results dict with metrics, trained CatBoost model
     """
+    from scripts.train import transform_batched
     model = CEBRA.load(model_path)
-    train_emb = model.transform(train_data['neural'])
-    test_emb = model.transform(test_data['neural'])
+    train_emb = transform_batched(model, train_data['neural'])
+    test_emb = transform_batched(model, test_data['neural'])
 
     train_labels = np.array(train_data[label_key])
     test_labels = np.array(test_data[label_key])
