@@ -48,6 +48,9 @@ merged = pd.concat([d for d in dfs if len(d) > 0], ignore_index=True)
 del dfs; gc.collect()
 print(f"Merged: {len(merged)} samples")
 
+merged = merged.dropna(subset=['cpc_bin']).reset_index(drop=True)
+print(f"After dropping NaN labels: {len(merged)} samples")
+
 feat_cols = [c for c in merged.columns if c not in meta_cols]
 neural = merged[feat_cols].values.astype(np.float32)
 neural = np.where(np.isinf(neural), np.nan, neural)
@@ -55,7 +58,7 @@ col_means = np.nanmean(neural, axis=0)
 inds = np.where(np.isnan(neural))
 neural[inds] = np.take(col_means, inds[1])
 
-cpc_bin = (merged['cpc_bin'] == 'good').astype(np.float32).values
+cpc_bin = (merged['cpc_bin'] == 'poor').astype(np.float32).values
 rel_sec = merged['rel_sec'].values.astype(np.float32)
 patients = merged['patient'].values
 
