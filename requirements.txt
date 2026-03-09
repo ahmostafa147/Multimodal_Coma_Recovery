@@ -2,9 +2,7 @@ numpy
 pandas
 torch
 cebra
-matplotlib
 scikit-learn
-jupyter
-catboost
-tqdm
 scipy
+tqdm
+plotly

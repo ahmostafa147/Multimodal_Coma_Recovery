@@ -23,7 +23,8 @@ __pycache__/
 *.pyd
 venv/
 *.egg-info/
-
+cebra/
+output/
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb_checkpoints

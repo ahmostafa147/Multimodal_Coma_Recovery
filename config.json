@@ -2,13 +2,13 @@
   "data": {
     "neural_dir": "/global/scratch/users/ahmostafa/CEBRA_modeling_local/1000_ICARE_patient_10s_94f_with_spike",
     "labels_path": "/global/scratch/users/ahmostafa/CEBRA_modeling_local/labels/ICARE_clinical.csv",
-    "test_size": 0.2,
+    "train_ids": "train_ids.csv",
+    "test_ids": "test_ids.csv",
     "nan_strategy": "drop",
     "seed": 42,
     "n_workers": 4
   },
-  "training": {
-    "labels": "cpc_bin",
+  "cebra": {
     "model_architecture": "offset10-model",
     "batch_size": 1024,
     "learning_rate": 0.0003,
@@ -16,31 +16,17 @@
     "max_iterations": 15000,
     "time_offsets": 10,
     "output_dimension": 3,
-    "seed": 42,
     "partial_fit_threshold": 2000000
   },
-  "prediction": {
-    "task_type": "GPU",
-    "iterations": 1000,
-    "learning_rate": 0.05,
-    "depth": 6,
-    "l2_leaf_reg": 3,
-    "verbose": 100
-  },
-  "tuning": {
+  "sweep": {
     "param_grid": {
       "learning_rate": [0.0001, 0.0003, 0.001],
-      "temperature": [1.0, 1.12, 1.5],
-      "output_dimension": [3, 8, 16],
-      "max_iterations": [3000, 5000, 10000]
+      "temperature": [0.5, 1.0, 1.12],
+      "output_dimension": [3, 8],
+      "batch_size": [512, 1024],
+      "max_iterations": [5000, 10000]
     },
-    "n_runs": 3
-  },
-  "animation": {
-    "duration": 30,
-    "fps": 15,
-    "smoothing": 0.5,
-    "rotation_speed": 1.0,
-    "max_bg_points": 50000
+    "max_train_samples": 2000000,
+    "max_plot_points": 50000
   }
 }
