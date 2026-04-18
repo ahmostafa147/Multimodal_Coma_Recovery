@@ -1,87 +1,66 @@
-# ICARE CEBRA Pipeline
-CPC prediction from neural data using CEBRA embeddings
+# Multimodal Coma Recovery — CEBRA EEG Embedding Pipeline
 
-## Quick Start
+CEBRA contrastive embedding pipeline for EEG state classification using PPNet prototype activations from the ICARE cohort.
 
-**Test pipeline (30 sec):**
-```bash
-make test
-```
+## Classes
 
-**Run on test data:**
-```bash
-python scripts/prepare_data.py --config test_config.json
-python scripts/train.py --config test_config.json
-python scripts/evaluate.py --model models/cebra_model.pt
-```
-
-## Setup
-
-**Docker:**
-```bash
-make build
-```
-
-**Local:**
-```bash
-python3 -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-## Data Structure
-```
-├── 1000_ICARE_patient_10s_94f_with_spike/  # Your data (not in repo)
-│   └── ICARE_*.csv (95 features + metadata)
-├── labels/
-│   └── ICARE_clinical.csv (CPC labels)
-└── test_data/  # Dummy data (included, 4 patients, 400 samples)
-    ├── TEST_*.csv
-    └── labels/test_clinical.csv
-```
+| ID | Label |
+|----|-------|
+| 0 | Seizure |
+| 1 | LPD |
+| 2 | GPD |
+| 3 | LRDA |
+| 4 | GRDA |
+| 5 | Burst Suppression |
+| 6 | Continuous |
+| 7 | Discontinuous |
 
 ## Pipeline
 
-**1. Prepare:** Merge neural + labels, handle NaN, stratified train/test split
-**2. Train:** CEBRA model with CPC labels (single or multi-label)
-**3. Evaluate:** KNN classification (accuracy, AUC)
-**4. Visualize:** 2D/3D embedding plots
-**5. Tune:** Hyperparameter grid search
+Run scripts in order:
 
-## Run
+| Script | Description |
+|--------|-------------|
+| `cebra/01_data_preprocessing.py` | Resample raw PPNet features to 5-min bins, PCA (1275 → 50), StandardScaler. Train/test split at patient level. |
+| `cebra/02_cebra_hybrid_training.py` | Train hybrid CEBRA model (discrete label + bidirectional 6-hour time offset). Computes train + test embeddings. |
+| `cebra/03_embedding_visualization.py` | Interactive 3D Plotly scatter of train vs test embeddings. |
+| `cebra/04_classification_evaluation.py` | Held-out InfoNCE, kNN, logistic regression, confusion matrices, centroid distances, silhouette score. |
+| `cebra/05_temporal_analysis.py` | Per-patient centroid similarity over time, prediction entropy, transition matrix, sojourn times, first-passage time, path length. |
 
-**Interactive:**
-```bash
-make notebook  # Opens Jupyter
+## Training Config
+
+| Parameter | Value |
+|-----------|-------|
+| Embedding dim | 3 |
+| Time offset | 72 bins (6 hours, bidirectional) |
+| Batch size | 1024 |
+| Iterations | 50,000 |
+| Temperature | 1.0 |
+| Architecture | offset10-model (Conv1d, 32 units) |
+| Learning rate | 3e-4 + cosine annealing |
+
+## Data
+
+Expected input: `PPNet_data_train.npz` and `PPNet_data_test.npz` containing:
+- `features` (N, 1275) — PPNet prototype activations
+- `predictions` (N,) — labels 1-8
+- `patient_ids` (N,) — patient identifiers
+- `chunks` (N,) — chunk identifiers within patients
+- `resolutions` (N,) — time resolution per row (seconds)
+- `times` (N,) — timestamps
+- `cpc_scores` (N,) — CPC outcome scores
+- `activations` (N, D) — raw activations
+
+## Requirements
+
 ```
-
-**CLI:**
-```bash
-make prepare    # Split data (patient-level, stratified by cpc_bin)
-make train      # Train CEBRA (5000 iter, 8 dims)
-make evaluate   # Test accuracy
-make visualize  # Plot embeddings
-```
-
-## Configuration
-
-**Use config.json:**
-```bash
-# Edit config.json, then:
-python scripts/prepare_data.py
-python scripts/train.py
-```
-
-**CLI overrides:**
-```bash
-python scripts/train.py --labels cpc,cpc_bin --max-iter 10000
-python scripts/prepare_data.py --nan-strategy median
-```
-
-**Multiple labels:**
-```json
-// config.json
-"training": {
-  "labels": "cpc,cpc_bin"  // Train with both
-}
+numpy
+torch
+cebra
+scikit-learn
+scipy
+matplotlib
+seaborn
+plotly
+tqdm
 ```

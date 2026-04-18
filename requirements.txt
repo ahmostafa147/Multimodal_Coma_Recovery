@@ -1,8 +1,0 @@
-numpy
-pandas
-torch
-cebra
-scikit-learn
-scipy
-tqdm
-plotly
