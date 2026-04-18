@@ -17,8 +17,8 @@ DATA_DIR = '/global/scratch/users/ahmostafa/CEBRA_modeling_local/github_model'
 OUTPUT_DIM = 3
 TIME_OFFSET = 72       # 72 x 5min = 6 hours
 BATCH_SIZE = 1024
-MAX_ITER = 50000
-TEMPERATURE = 1.0
+MAX_ITER = 20000
+TEMPERATURE = 0.35
 NUM_UNITS = 32
 LR = 3e-4
 
