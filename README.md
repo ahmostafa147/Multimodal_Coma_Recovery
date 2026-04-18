@@ -34,8 +34,8 @@ Run scripts in order:
 | Embedding dim | 3 |
 | Time offset | 72 bins (6 hours, bidirectional) |
 | Batch size | 1024 |
-| Iterations | 50,000 |
-| Temperature | 1.0 |
+| Iterations | 20,000 |
+| Temperature | 0.35 |
 | Architecture | offset10-model (Conv1d, 32 units) |
 | Learning rate | 3e-4 + cosine annealing |
 
